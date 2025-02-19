@@ -1,0 +1,88 @@
+import math
+
+def read_data(filename):
+    rows = read_csv(filename)
+    data = tuple(map(int, r[1:]) for r in rows[1:])
+    age_title = map(int, (r[0] for r in rows[1:]))
+    rep_title = map(int, rows[0][1:])
+    return create_table(data, age_title, rep_title)
+pushup_table = read_data("pushup.csv")
+situp_table = read_data("situp.csv")
+run_table = read_data("run.csv")
+ippt_table = make_ippt_table(pushup_table, situp_table, run_table)
+
+def pushup_score(pushup_table, age, pushup):
+    return access_cell(pushup_table, age, max(1, min(pushup, 60)))
+def situp_score(situp_table, age, situp):
+    return access_cell(situp_table, age, max(1, min(situp, 60)))
+def run_score(run_table, age, run):
+    return access_cell(run_table, age, max(510, min(math.ceil(run / 10) * 10, 1100)))
+
+def ippt_award(score):
+    if score < 51:
+        return 'F'
+    elif score < 61:
+        return 'P'
+    elif score < 75:
+        return 'P$'
+    elif score < 85:
+        return 'S'
+    else:
+        return 'G'
+
+def ippt_results(ippt_table, age, pushup, situp, run):
+    s = pushup_score(get_pushup_table(ippt_table), age, pushup) + situp_score(get_situp_table(ippt_table), age, situp) + run_score(get_run_table(ippt_table), age, run)
+    return (s, ippt_award(s))
+
+import csv
+def parse_results(csvfilename):
+    ippt_takers_data = [('Name', 'Age', 'Push-Ups', 'Sit-Ups', '2.4-Km-Run', 'Total-Score', 'Award')]
+    with open(csvfilename, 'r') as csvfile:
+        data = csv.reader(csvfile)
+        next(data)
+        for row in data:
+            name = str(row[0])
+            age = int(row[1])
+            pushups = int(row[2])
+            situps = int(row[3])
+            run = int(row[4])
+            totalscore = int(ippt_results(ippt_table, age, pushups, situps, run)[0])
+            award = str(ippt_award(totalscore))
+            
+            result_tuple = (name, age, pushups, situps, run, totalscore, award)
+            ippt_takers_data.append(result_tuple)
+    return ippt_takers_data
+
+def num_awards(ippt_takers_data, age):
+    data = list(filter(lambda x: x[1] == age, ippt_takers_data))
+    
+    d = {}
+    for name, age, pushups, situps, run, totalscore, award in data: 
+        if award not in d:
+            d[award] = []
+        d[award].append(1)
+    
+    new_d = {}
+    for award, total in d.items():
+        distribution = sum(total)
+        new_d[award] = distribution
+    return new_d
+
+def top_k_scores(ippt_takers_data, k, age):
+    data = list(filter(lambda x: x[1] == age, ippt_takers_data))
+    
+    grouped_data = {}
+    for name, age, pushups, situps, run, totalscore, award in data:
+        if name not in grouped_data:
+            grouped_data[name] = totalscore
+    
+    result = sorted(grouped_data.items(), key = lambda x: x[0])
+    result = sorted(result, key = lambda x: x[1], reverse = True)
+    
+    if k == 0:
+        return ()
+    elif k >= len(result):
+        return result
+    else:
+        threshold = result[k-1][1]
+        return list(filter(lambda x: x[1] >= threshold, result))
